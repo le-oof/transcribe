@@ -69,10 +69,42 @@ def download_audio_or_video(url: str, output_dir: str) -> tuple[str, str]:
     video_path.unlink()
     return str(audio_path), folder_name
 
-def transcribe_audio(audio_path, language='ru'):
+def split_audio_to_chunks(audio_path, chunk_length):
+    """
+    Splits audio into chunks of chunk_length seconds using ffmpeg.
+    Returns a list of chunk file paths.
+    """
+    from pathlib import Path
+    chunk_dir = Path(audio_path).parent / 'chunks'
+    chunk_dir.mkdir(exist_ok=True)
+    # ffmpeg command to split audio
+    chunk_pattern = str(chunk_dir / 'chunk_%03d.wav')
+    split_cmd = [
+        'ffmpeg', '-i', str(audio_path), '-f', 'segment', '-segment_time', str(chunk_length), '-c', 'copy', chunk_pattern, '-y'
+    ]
+    subprocess.run(split_cmd, capture_output=True)
+    # Collect chunk files
+    chunk_files = sorted(chunk_dir.glob('chunk_*.wav'))
+    return chunk_files
+
+def transcribe_audio(audio_path, language='ru', chunk_length=50):
     model = whisper.load_model('base', device='cpu')
-    result = model.transcribe(audio_path, language=language)
-    return result['text']
+    chunk_files = split_audio_to_chunks(audio_path, chunk_length)
+    transcript = ''
+    for idx, chunk in enumerate(chunk_files):
+        print(f'Transcribing chunk {idx+1}/{len(chunk_files)}: {chunk}')
+        result = model.transcribe(str(chunk), language=language)
+        transcript += 'New chunk:\n' + result['text'].strip() + '\n'
+    # Clean up chunk files
+    for chunk in chunk_files:
+        chunk.unlink()
+    chunk_dir = (Path(audio_path).parent / 'chunks')
+    if chunk_dir.exists():
+        try:
+            chunk_dir.rmdir()
+        except OSError:
+            pass  # Directory not empty (shouldn't happen)
+    return transcript
 
 def transcribe_video_url(url, output_dir='.'):
     audio_path, folder_name = download_audio_or_video(url, output_dir)
