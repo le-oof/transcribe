@@ -26,3 +26,7 @@ def generate_video_urls(
                     url = f"{base_url}{code}/{filename}"
                     urls.append(url)
     return urls
+
+
+def sanitize_filename(name):
+    return ''.join(c for c in name if c.isalnum() or c in (' ', '.', '.', '_', '-')).rstrip()

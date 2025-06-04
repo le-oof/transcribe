@@ -1,10 +1,8 @@
 import subprocess
 import whisper
 from pathlib import Path
+from utils import sanitize_filename
 
-
-def sanitize_filename(name):
-    return ''.join(c for c in name if c.isalnum() or c in (' ', '.', '.', '_', '-')).rstrip()
 
 def download_audio_or_video(url: str, output_dir: str) -> tuple[str, str]:
     """
@@ -28,7 +26,7 @@ def download_audio_or_video(url: str, output_dir: str) -> tuple[str, str]:
     folder_path.mkdir(parents=True, exist_ok=True)
 
     # Try to download best audio only
-    audio_path = folder_path / 'audio.wav'
+    audio_path = folder_path / 'audio.m4a'
     audio_cmd = [
         'yt-dlp',
         '-f', 'bestaudio',
@@ -40,7 +38,8 @@ def download_audio_or_video(url: str, output_dir: str) -> tuple[str, str]:
 
     if audio_path.exists():
         return str(audio_path), folder_name
-    # If audio download failed, download best video
+
+    audio_path = folder_path / 'audio.wav'
     video_path = folder_path / 'video.mp4'
     video_cmd = [
         'yt-dlp',
@@ -56,7 +55,6 @@ def download_audio_or_video(url: str, output_dir: str) -> tuple[str, str]:
         raise RuntimeError('Failed to download audio or video.')
     # Extract audio using ffmpeg
 
-    print(video_path)
     extract_cmd = [
         'ffmpeg', '-y', '-i', str(video_path), '-vn', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', str(audio_path)
     ]
