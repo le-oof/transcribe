@@ -5,7 +5,7 @@ from pathlib import Path
 
 TRANSCRIPTS_DIR = Path('transcripts')
 ENHANCED_DIR = Path('enhanced_transcripts')
-CONTEXT_COUNT = 3
+CONTEXT_COUNT = 1
 CHARACTER_LIMIT = 1_000_000
 
 
@@ -27,35 +27,37 @@ def load_transcripts(directory):
 
 
 def enhance_transcript(api_key, context_transcripts, current_transcript):
-    openai.api_key = api_key
+    client = openai.OpenAI(api_key=api_key)
     # Prepare context: last CONTEXT_COUNT enhanced transcripts
     context_text = '\n\n'.join([t[1] for t in context_transcripts[-CONTEXT_COUNT:]]) if context_transcripts else ''
     prompt = (
         "You are an expert transcriber and editor. You receive a transcript from Whisper that may contain grammar errors, misheard or misspelled words, and unnecessary delimiters like 'New chunk'. "
         "Your job is to fix grammar and spelling, correct misheard or misspelled words, remove all 'New chunk' delimiters, and glue the transcript together smoothly. "
         "Chunks overlap by 5 seconds. "
-        "Sometimes you need to think to understand what was meant: use your knowledge of philosophy and history. "
+        "Sometimes you need to think to understand what was meant: use your knowledge in philosophy and history. "
+        "For example, 'бород мечал' in one transcript was meant to be 'Бор отмечал' (it was said about Нильс Бор during the lecture). "
         "Rewrite as little as possible: only make necessary corrections to make the text correct and consistent. "
-        "Here are up to 3 previous enhanced transcripts for context (if any):\n" + context_text +
+        "Here are up to 2 previous enhanced transcripts for context (if any):\n" + context_text +
         "\n\nHere is the next transcript to enhance:\n" + current_transcript +
         "\n\nReturn ONLY the enhanced transcript, nothing else."
     )
-    response = openai.ChatCompletion.create(
-        model="gpt-4o",
+    response = client.chat.completions.create(
+        model="gpt-4.1",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
-        max_tokens=4096,
+        max_completion_tokens=10000,
+        # service_tier="flex",
     )
-    return response['choices'][0]['message']['content'].strip()
+    print(response.choices[0].message.content)
+
+    print(response)
+    return response.choices[0].message.content.strip()
 
 
 def main():
-    api_key = os.getenv('OPENAI_API_KEY')
-    if not api_key:
-        api_key = input('Enter your OpenAI API key: ').strip()
-        if not api_key:
-            print('No API key provided. Exiting.')
-            sys.exit(1)
+    if len(sys.argv) < 2:
+        print(f"Usage: python {sys.argv[0]} <OPENAI_API_KEY>")
+        sys.exit(1)
+    api_key = sys.argv[1]
 
     if not TRANSCRIPTS_DIR.exists():
         print(f"Transcripts directory '{TRANSCRIPTS_DIR}' does not exist. Exiting.")
@@ -73,10 +75,17 @@ def main():
     context_enhanced = []
 
     for idx, (filename, transcript) in enumerate(transcripts):
+        out_path = ENHANCED_DIR / filename
+        if out_path.exists():
+            print(f"{out_path} already exists. Skipping.")
+            # Still add to context_enhanced for context chaining
+            with open(out_path, 'r', encoding='utf-8') as f:
+                enhanced = f.read()
+            context_enhanced.append((filename, enhanced))
+            continue
         print(f"Enhancing {filename} ({idx+1}/{len(transcripts)})...")
         enhanced = enhance_transcript(api_key, context_enhanced, transcript)
         context_enhanced.append((filename, enhanced))
-        out_path = ENHANCED_DIR / filename
         with open(out_path, 'w', encoding='utf-8') as f:
             f.write(enhanced)
         print(f"Saved enhanced transcript to {out_path}")
