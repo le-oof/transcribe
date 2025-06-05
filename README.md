@@ -6,3 +6,6 @@ What's the pipeline:
 3. Enhance these transcripts with openai gpt -- check the difference between "transcipts" and "enhanced_transcipts" folders, it's great.
 4. Glue enhanced_transcipts together into one .md file. I named each section of .md file by parsing page.html, which I downloaded manually from the course page.
 5. Check the result in PhilosophyTranscript.md.
+
+Requirements:
+FFmpeg on path and OpeanAI API key
