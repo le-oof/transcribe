@@ -1,4 +1,4 @@
-Take videos' urls, get unified .md file. Specific to my partiqular usecase, but might be usefull I guess.
+Take videos' urls, get unified .md file. Specific to my partiсular usecase, but might be usefull I guess.
 
 What's the pipeline:
 1. Generate urls into urls.txt (I used utils.py)
@@ -8,4 +8,4 @@ What's the pipeline:
 5. Check the result in PhilosophyTranscript.md.
 
 Requirements:
-FFmpeg on path and OpeanAI API key
+FFmpeg on path and OpenAI API key
